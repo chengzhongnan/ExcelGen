@@ -112,8 +112,17 @@ namespace ExcelTool
             var xRoot = XElement.Load(fileName);
             foreach(var xTable in xRoot.Elements())
             {
-                T table = LoadTableFromXmlNode(xTable);
-                Add(table);
+                try
+                {
+                    T table = LoadTableFromXmlNode(xTable);
+                    Add(table);
+                }
+                catch (Exception ex)
+                {
+                    Exception propException = new Exception(
+                        string.Format("TableType=[{0}], fileName = {1}", typeof(T), fileName), ex);
+                    throw propException;
+                }
             }
         }
 
