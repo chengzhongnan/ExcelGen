@@ -167,6 +167,21 @@ namespace ExcelTool
                     case CellType.Error:
                         return cell.ErrorCellValue.ToString();
                     case CellType.Formula:
+                        {
+                            if (cell.CachedFormulaResultType == CellType.String)
+                            {
+                                return cell.StringCellValue;
+                            }
+                            if (cell.CachedFormulaResultType == CellType.Numeric)
+                            {
+                                return cell.NumericCellValue.ToString();
+                            }
+                            if (cell.CachedFormulaResultType == CellType.Boolean)
+                            {
+                                return cell.BooleanCellValue.ToString();
+                            }
+                            return string.Empty;
+                        }
                     case CellType.Numeric:
                         return cell.NumericCellValue.ToString();
                     case CellType.String:
@@ -249,15 +264,17 @@ namespace ExcelTool
                         var xSub = new XElement(header.Name + "Element");
 
                         bool bAdd = true;
+                        bool bFirst = true;
                         foreach (var sh in subHeaderDic.Value)
                         {
                             var col = sh.ColumnStart;
                             var cell = row.Cells.Find(x => x.ColumnIndex == col);
-                            if (cell == null || cell.CellType == CellType.Blank)
+                            if (bFirst &&( cell == null || cell.CellType == CellType.Blank))
                             {
                                 bAdd = false;
                                 break;
                             }
+                            bFirst = false;
                             var xSubEle = new XElement(sh.Name, GetCellValue(cell));
                             xSub.Add(xSubEle);
                         }
