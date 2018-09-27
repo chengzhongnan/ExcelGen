@@ -145,7 +145,18 @@ namespace ExcelTool
             for(var i = 4; i < sheet.LastRowNum + 1; i++)
             {
                 var rowIndexValue = string.Empty;
-                var xRow = GenarateRowData(sheetName, headers, sheet.GetRow(i), ref rowIndexValue);
+                var row = sheet.GetRow(i);
+                if (row == null)
+                {
+                    // 跳过空行
+                    break;
+                }
+                var xRow = GenarateRowData(sheetName, headers, row, ref rowIndexValue);
+                if (string.IsNullOrEmpty(rowIndexValue))
+                {
+                    // 跳过索引为空的行
+                    break;
+                }
                 xRoot.Add(xRow);
                 enumIndex.Add(rowIndexValue);
             }

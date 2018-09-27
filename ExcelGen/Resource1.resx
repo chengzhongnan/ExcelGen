@@ -203,8 +203,15 @@ namespace ExcelTables
             }
             if(indexProp != null)
             {
-                var indexValue = indexProp.GetValue(table, null);
-                Tables.Add((U)indexValue, table);
+				var indexValue = indexProp.GetValue(table, null);
+				try
+                {
+					Tables.Add((U)indexValue, table);
+				}
+				catch(Exception e)
+				{
+					throw new Exception(indexValue.ToString(), e);
+				}
             }
         }
 
