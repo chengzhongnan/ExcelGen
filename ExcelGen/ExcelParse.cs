@@ -13,6 +13,7 @@ using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Reflection.Emit;
 using System.Collections;
+using System.Security.Cryptography;
 
 namespace ExcelTool
 {
@@ -55,8 +56,79 @@ namespace ExcelTool
             }
         }
 
+        class CacheFileData
+        {
+            public string FileName { get; set; }
+            public string Hash { get; set; }
+            public DateTime ChangeDate { get; set; }
+        }
+
+        private static string CacheFileName => Environment.CurrentDirectory + "/cache.json";
+
+        private Dictionary<string , CacheFileData> GetFileCaches()
+        {
+            Dictionary<string, CacheFileData> results = new Dictionary<string, CacheFileData>();
+            if (!File.Exists(CacheFileName))
+            {
+                return results;
+            }
+            try
+            {
+                var content = File.ReadAllText(CacheFileName);
+                var data = Newtonsoft.Json.JsonConvert.DeserializeObject<List<CacheFileData>>(content);
+                foreach (var cf in data)
+                {
+                    results.Add(cf.FileName, cf);
+                }
+            }
+            catch (Exception) { }
+
+            return results;
+        }
+
+        private void SaveCacheFile(Dictionary<string, CacheFileData> cacheFiles)
+        {
+            var data = cacheFiles.Select(x => x.Value).ToArray();
+            File.WriteAllText(CacheFileName, Newtonsoft.Json.JsonConvert.SerializeObject(data), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// HMAC-SHA1加密算法
+        /// </summary>
+        /// <param name="key">密钥</param>
+        /// <param name="input">要加密的串</param>
+        /// <returns></returns>
+        private static string HmacSha1(string key, string input)
+        {
+            byte[] keyBytes = ASCIIEncoding.ASCII.GetBytes(key);
+            byte[] inputBytes = ASCIIEncoding.ASCII.GetBytes(input);
+            HMACSHA1 hmac = new HMACSHA1(keyBytes);
+            byte[] hashBytes = hmac.ComputeHash(inputBytes);
+            return Convert.ToBase64String(hashBytes);
+        }
+
+        private const string Key = "hello,world!";
+
+        private CacheFileData GetCurrentFile()
+        {
+            var content = File.ReadAllBytes(FileName);
+            var base64Data = Convert.ToBase64String(content);
+            var sha1 = HmacSha1(Key, base64Data);
+
+            CacheFileData cacheFile = new CacheFileData()
+            {
+                ChangeDate = DateTime.Now,
+                FileName = FileName,
+                Hash = sha1,
+            };
+
+            return cacheFile;
+        }
+
         public void DoParse(ref Dictionary<string, string> classDic, string xmlSavePath, string jsonSavePath)
         {
+            var cacheFiles = GetFileCaches();
+            var currentFile = GetCurrentFile();
             var sheetNames = GetSheets();
             Dictionary<string, List<ExcelHeader>> headerDic = new Dictionary<string, List<ExcelHeader>>();
             foreach (var sheetName in sheetNames)
@@ -69,6 +141,12 @@ namespace ExcelTool
                     GenarateCSharpCode gc = new GenarateCSharpCode();
                     var classText = gc.GenarateClass(sheetName, headers);
                     classDic.Add(sheetName, classText);
+
+                    if (cacheFiles.ContainsKey(FileName) && cacheFiles[FileName].Hash == currentFile.Hash)
+                    {
+                        continue;
+                    }
+
                     var indexValues = SaveXMLData(sheetName, headers, 
                         xmlSavePath.Trim('\\') + "\\" + sheetName + ".xml",
                         jsonSavePath.Trim('\\') + "\\" + sheetName + ".json");
@@ -77,12 +155,17 @@ namespace ExcelTool
                         var enumText = gc.GenarateEnum(sheetName, indexValues);
                         classDic.Add(nameof(Enum) + sheetName, enumText);
                     }
+
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine("Sheet [" + sheetName + "] header invalid");
                 }
+
             }
+
+            cacheFiles[FileName] = currentFile;
+            SaveCacheFile(cacheFiles);
         }
 
         /// <summary>
