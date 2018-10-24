@@ -125,6 +125,8 @@ namespace ExcelTool
             return cacheFile;
         }
 
+        const string SysConfigSheetName = "SystemConfig";
+
         public void DoParse(ref Dictionary<string, string> classDic, string xmlSavePath, string jsonSavePath)
         {
             var cacheFiles = GetFileCaches();
@@ -142,7 +144,9 @@ namespace ExcelTool
                     var classText = gc.GenarateClass(sheetName, headers);
                     classDic.Add(sheetName, classText);
 
-                    if (cacheFiles.ContainsKey(FileName) && cacheFiles[FileName].Hash == currentFile.Hash)
+                    if (cacheFiles.ContainsKey(FileName) 
+                        && cacheFiles[FileName].Hash == currentFile.Hash
+                        && sheetName != SysConfigSheetName)
                     {
                         continue;
                     }
@@ -150,7 +154,7 @@ namespace ExcelTool
                     var indexValues = SaveXMLData(sheetName, headers, 
                         xmlSavePath.Trim('\\') + "\\" + sheetName + ".xml",
                         jsonSavePath.Trim('\\') + "\\" + sheetName + ".json");
-                    if (sheetName == "SystemConfig")
+                    if (sheetName == SysConfigSheetName)
                     {
                         var enumText = gc.GenarateEnum(sheetName, indexValues);
                         classDic.Add(nameof(Enum) + sheetName, enumText);
