@@ -158,6 +158,11 @@ namespace ExcelTool
             {
                 GenaratePropertyWithType(ref sb, eh, eh.Type, eh.Name);
             }
+            else if (eh.SubNode.Count == 1)
+            {
+                GenarateSubClass(ref sb, eh.Type, eh.SubNode[0]);
+                GenaratePropertyWithType(ref sb, eh, eh.Type, eh.Name);
+            }
             else
             {
                 GenarateSubClass(ref sb, eh.Name ,eh.SubNode[0]);

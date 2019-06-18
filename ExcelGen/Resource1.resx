@@ -297,9 +297,17 @@ namespace ExcelTables
                         var xProp = xEle.Element(pro.Name);
                         if (xProp != null)
                         {
-                            var sValue = xProp.Value;
-                            object v = Convert.ChangeType(sValue, pro.PropertyType);
-                            pro.SetValue(objTable, v);
+                            if (xProp.Element(pro.Name + "Element") != null)
+                            {
+                                var v = GetXmlElementObject(xProp.Element(pro.Name + "Element"), pro);
+                                pro.SetValue(objTable, v);
+                            }
+							else
+							{
+								var sValue = xProp.Value;
+								object v = Convert.ChangeType(sValue, pro.PropertyType);
+								pro.SetValue(objTable, v);
+							}
                         }
                     }
                 }
@@ -313,6 +321,23 @@ namespace ExcelTables
             return objTable;
         }
 
+		private object GetXmlElementObject(XElement xEle, PropertyInfo propInfo)
+        {
+            var obj = Activator.CreateInstance(propInfo.PropertyType);
+            var objSubProps = obj.GetType().GetProperties();
+            foreach (var subObjProp in objSubProps)
+            {
+                var s = xEle.Element(subObjProp.Name);
+                if (s != null)
+                {
+                    object v = Convert.ChangeType(s.Value, subObjProp.PropertyType);
+                    subObjProp.SetValue(obj, v);
+                }
+            }
+
+            return obj;
+        }
+		
         private object GetXmlListObject(XElement xProp, PropertyInfo propInfo)
         {
             var genericArgv = propInfo.PropertyType.GetGenericArguments()[0];

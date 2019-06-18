@@ -20,8 +20,8 @@ namespace ExcelTool
     /// </summary>
     /// <typeparam name="T">子类类型</typeparam>
     /// <typeparam name="U">索引类型</typeparam>
-    public class ScriptTableBase<T,U> : IScriptTableBase
-        where T : ScriptTableBase<T,U>, new()
+    public class ScriptTableBase<T, U> : IScriptTableBase
+        where T : ScriptTableBase<T, U>, new()
     {
         private static T _Instance = null;
         /// <summary>
@@ -31,7 +31,7 @@ namespace ExcelTool
         {
             get
             {
-                if(_Instance == null)
+                if (_Instance == null)
                 {
                     _Instance = new T();
                 }
@@ -46,7 +46,7 @@ namespace ExcelTool
         {
             get
             {
-                if(_Tables == null)
+                if (_Tables == null)
                 {
                     _Tables = new Dictionary<U, T>();
                 }
@@ -62,29 +62,33 @@ namespace ExcelTool
         {
             var props = typeof(T).GetProperties();
             PropertyInfo indexProp = null;
-            foreach(var p in props)
+            foreach (var p in props)
             {
-                if(p.PropertyType != typeof(U))
+                if (p.PropertyType != typeof(U))
                 {
                     continue;
                 }
-                foreach(var pAttr in p.CustomAttributes)
+                foreach (var pAttr in p.GetCustomAttributes(typeof(ExcelIndexAttribute), true))
                 {
-                    if(pAttr.AttributeType == typeof(ExcelIndexAttribute))
-                    {
-                        indexProp = p;
-                        break;
-                    }
+                    indexProp = p;
+                    break;
                 }
-                if(indexProp != null)
+                if (indexProp != null)
                 {
                     break;
                 }
             }
-            if(indexProp != null)
+            if (indexProp != null)
             {
-                var indexValue = indexProp.GetValue(table);
-                Tables.Add((U)indexValue, table);
+                var indexValue = indexProp.GetValue(table, null);
+                try
+                {
+                    Tables.Add((U)indexValue, table);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(indexValue.ToString(), e);
+                }
             }
         }
 
@@ -110,7 +114,7 @@ namespace ExcelTool
         {
             Tables.Clear();
             var xRoot = XElement.Load(fileName);
-            foreach(var xTable in xRoot.Elements())
+            foreach (var xTable in xRoot.Elements())
             {
                 try
                 {
@@ -126,12 +130,28 @@ namespace ExcelTool
             }
         }
 
+        public virtual void LoadTableFromXML(string xmlData)
+        {
+            Clear();
+            var xRoot = System.Xml.Linq.XElement.Parse(xmlData);
+            foreach (var xTable in xRoot.Elements())
+            {
+                T table = LoadTableFromXmlNode(xTable);
+                Add(table);
+            }
+        }
+
+        public virtual void Clear()
+        {
+            Tables.Clear();
+        }
+
         protected T LoadTableFromXmlNode(XElement xEle)
         {
             var type = typeof(T);
             var propList = type.GetProperties();
             T objTable = new T();
-            foreach(var pro in propList)
+            foreach (var pro in propList)
             {
                 try
                 {
@@ -154,13 +174,21 @@ namespace ExcelTool
                         var xProp = xEle.Element(pro.Name);
                         if (xProp != null)
                         {
-                            var sValue = xProp.Value;
-                            object v = Convert.ChangeType(sValue, pro.PropertyType);
-                            pro.SetValue(objTable, v);
+                            if (xProp.Element(pro.Name + "Element") != null)
+                            {
+                                var v = GetXmlElementObject(xProp.Element(pro.Name + "Element"), pro);
+                                pro.SetValue(objTable, v);
+                            }
+                            else
+                            {
+                                var sValue = xProp.Value;
+                                object v = Convert.ChangeType(sValue, pro.PropertyType);
+                                pro.SetValue(objTable, v);
+                            }
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Exception propException = new Exception(
                         string.Format("TableType=[{0}], PropName = [{1}], xml = [{2}]", typeof(T), pro.Name, xEle.ToString()), ex);
@@ -170,12 +198,29 @@ namespace ExcelTool
             return objTable;
         }
 
+        private object GetXmlElementObject(XElement xEle, PropertyInfo propInfo)
+        {
+            var obj = Activator.CreateInstance(propInfo.PropertyType);
+            var objSubProps = obj.GetType().GetProperties();
+            foreach (var subObjProp in objSubProps)
+            {
+                var s = xEle.Element(subObjProp.Name);
+                if (s != null)
+                {
+                    object v = Convert.ChangeType(s.Value, subObjProp.PropertyType);
+                    subObjProp.SetValue(obj, v);
+                }
+            }
+
+            return obj;
+        }
+
         private object GetXmlListObject(XElement xProp, PropertyInfo propInfo)
         {
-            var genericArgv = propInfo.PropertyType.GenericTypeArguments[0];
-            dynamic obj = Activator.CreateInstance(propInfo.PropertyType);
+            var genericArgv = propInfo.PropertyType.GetGenericArguments()[0];
+            var obj = Activator.CreateInstance(propInfo.PropertyType);
             var addMethod = propInfo.PropertyType.GetMethod("Add");
-            if (genericArgv.IsPrimitive)
+            if (genericArgv.IsPrimitive || genericArgv.Name == typeof(string).Name)
             {
                 // 基础类型
                 foreach (var subNode in xProp.Elements())
@@ -188,17 +233,17 @@ namespace ExcelTool
             else
             {
                 // 非基础类型
-                foreach(var subNode in xProp.Elements())
+                foreach (var subNode in xProp.Elements())
                 {
                     var objSub = Activator.CreateInstance(genericArgv);
                     var objSubProps = objSub.GetType().GetProperties();
-                    foreach(var subObjProp in objSubProps)
+                    foreach (var subObjProp in objSubProps)
                     {
                         var s = subNode.Element(subObjProp.Name);
-                        if(s != null)
+                        if (s != null)
                         {
                             object v = Convert.ChangeType(s.Value, subObjProp.PropertyType);
-                            subObjProp.SetValue(objSub, v);
+                            subObjProp.SetValue(objSub, v, null);
                         }
                     }
 
@@ -222,7 +267,7 @@ namespace ExcelTool
         {
             get
             {
-                if(_Instance == null)
+                if (_Instance == null)
                 {
                     _Instance = new AutoLoadConfig();
                 }
@@ -230,16 +275,16 @@ namespace ExcelTool
             }
         }
 
-        private Dictionary<string ,Type> TableConfigTypeList = null; 
+        private Dictionary<string, Type> TableConfigTypeList = null;
 
         public void RegistryAssembly(Assembly asm)
         {
             var types = asm.GetTypes();
-            foreach(var type in types)
+            foreach (var type in types)
             {
-                if(type.IsSubclassOf(typeof(IScriptTableBase)) && !type.Name.StartsWith("ScriptTableBase"))
+                if (type.IsSubclassOf(typeof(IScriptTableBase)) && !type.Name.StartsWith("ScriptTableBase"))
                 {
-                    if(!TableConfigTypeList.ContainsKey(type.AssemblyQualifiedName))
+                    if (!TableConfigTypeList.ContainsKey(type.AssemblyQualifiedName))
                     {
                         TableConfigTypeList.Add(type.AssemblyQualifiedName, type);
                     }
@@ -249,37 +294,30 @@ namespace ExcelTool
 
         public void LoadConfig(string strFolder)
         {
-            foreach(var typeKV in TableConfigTypeList)
+            foreach (var typeKV in TableConfigTypeList)
             {
-                try
+                var instanceProp = typeKV.Value.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public);
+                if (instanceProp != null)
                 {
-                    var instanceProp = typeKV.Value.GetProperty("Instance", BindingFlags.Static | BindingFlags.Public);
-                    if (instanceProp != null)
+                    var instance = instanceProp.GetValue(null, null);
+
+                    var xmlProp = typeKV.Value.GetProperty("XMLFile", BindingFlags.Instance | BindingFlags.Public);
+                    string xmlName = "";
+                    if (xmlProp != null)
                     {
-                        var instance = instanceProp.GetValue(null);
-
-                        var xmlProp = typeKV.Value.GetProperty("XMLFile", BindingFlags.Instance | BindingFlags.Public);
-                        string xmlName = "";
-                        if (xmlProp != null)
-                        {
-                            xmlName = xmlProp.GetValue(instance).ToString();
-                        }
-                        else
-                        {
-                            xmlName = typeKV.Value.Name + ".xml";
-                        }
-
-                        var xmlFileName = strFolder.TrimEnd('\\') + "\\" + xmlName;
-                        var loadTableMethod = typeKV.Value.GetMethod("LoadTable");
-                        if (instance != null && loadTableMethod != null)
-                        {
-                            loadTableMethod.Invoke(instance, new object[] { xmlFileName });
-                        }
+                        xmlName = xmlProp.GetValue(instance, null).ToString();
                     }
-                }
-                catch(Exception ex)
-                {
+                    else
+                    {
+                        xmlName = typeKV.Value.Name + ".xml";
+                    }
 
+                    var xmlFileName = strFolder.TrimEnd('\\') + "\\" + xmlName;
+                    var loadTableMethod = typeKV.Value.GetMethod("LoadTable");
+                    if (instance != null && loadTableMethod != null)
+                    {
+                        loadTableMethod.Invoke(instance, new object[] { xmlFileName });
+                    }
                 }
             }
         }

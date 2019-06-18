@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2050
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelGen", "ExcelGen\ExcelGen.csproj", "{4865B98F-FDC6-41F7-8D39-516ED1476009}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{2EF61930-F581-4900-9E13-29BFB0E8492D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{4865B98F-FDC6-41F7-8D39-516ED1476009}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4865B98F-FDC6-41F7-8D39-516ED1476009}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4865B98F-FDC6-41F7-8D39-516ED1476009}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2EF61930-F581-4900-9E13-29BFB0E8492D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2EF61930-F581-4900-9E13-29BFB0E8492D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2EF61930-F581-4900-9E13-29BFB0E8492D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2EF61930-F581-4900-9E13-29BFB0E8492D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FFE464CA-1E13-4906-B9E0-39150354BC55}
 	EndGlobalSection
 EndGlobal

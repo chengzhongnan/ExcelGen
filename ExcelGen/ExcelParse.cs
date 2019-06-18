@@ -248,7 +248,7 @@ namespace ExcelTool
                 enumIndex.Add(rowIndexValue);
             }
             xRoot.Save(fileName);
-            SaveJson(xRoot, jsonfileName);
+            SaveJson(xRoot, jsonfileName, headers);
             return enumIndex;
         }
 
@@ -510,18 +510,26 @@ namespace ExcelTool
 
             int structLength = GetMutiExcelStructLength(rowDetail, cols);
             header.SubClassFieldLength = structLength;
-            if(structLength == 1)
-            {
-                header.Type = "List<" + rowType.GetCell(header.ColumnStart).StringCellValue + ">";
-            }
-            else
-            {
-                header.Type = "List<" + header.Name + ">";
-            }
 
             for (var i = header.ColumnStart; i <= header.ColumnEnd; i += structLength)
             {
                 header.SubNode[header.SubNode.Count] = GetStructHeader(rowDetail, rowType, rowDesc, i, structLength);
+            }
+
+            if (header.SubNode.Count == 1)
+            {
+                header.Type = header.Name + "Object";
+            }
+            else
+            {
+                if (structLength == 1)
+                {
+                    header.Type = "List<" + rowType.GetCell(header.ColumnStart).StringCellValue + ">";
+                }
+                else
+                {
+                    header.Type = "List<" + header.Name + ">";
+                }
             }
 
             return header;
@@ -580,7 +588,7 @@ namespace ExcelTool
             return headerList;
         }
 
-        private void SaveJson(XElement xml, string fileName)
+        private void SaveJson(XElement xml, string fileName, List<ExcelHeader> headers)
         {
             ArrayList jsonObject = new ArrayList();
             foreach (var ele in xml.Elements())
@@ -590,6 +598,7 @@ namespace ExcelTool
                 {
                     if (col.Elements().Count() > 0)
                     {
+                        var header = headers.First(x => x.Name == col.Name.LocalName);
                         List<object> subObjectList = new List<object>();
                         foreach (var subCol in col.Elements())
                         {
@@ -598,20 +607,23 @@ namespace ExcelTool
                                 Dictionary<string, object> objSub = new Dictionary<string, object>();
                                 foreach (var subColEle in subCol.Elements())
                                 {
-                                    objSub[subColEle.Name.LocalName] = subColEle.Value;
+                                    var subHeader = header.SubNode.First().Value.First(x => x.Name == subColEle.Name.LocalName);
+                                    objSub[subColEle.Name.LocalName] = ChangeType(subColEle.Value, subHeader.Type);
                                 }
                                 subObjectList.Add(objSub);
                             }
                             else
                             {
-                                subObjectList.Add(subCol.Value);
+                                var subHeader = header.SubNode.First().Value.First();
+                                subObjectList.Add(ChangeType(subCol.Value, subHeader.Type));
                             }
                         }
                         objConfig[col.Name.LocalName] = subObjectList;
                     }
                     else
                     {
-                        objConfig[col.Name.LocalName] = col.Value;
+                        var header = headers.First(x => x.Name == col.Name.LocalName);
+                        objConfig[col.Name.LocalName] = ChangeType(col.Value, header.Type);
                     }
                 }
                 jsonObject.Add(objConfig);
@@ -621,7 +633,40 @@ namespace ExcelTool
 
             File.WriteAllText(fileName, jsonStr);
         }
+
+        private object ChangeType(string obj, string type)
+        {
+            switch(type)
+            {
+                case "int":
+                    return int.Parse(obj);
+                case "string":
+                    return obj;
+                case "float":
+                    return float.Parse(obj);
+                case "double":
+                    return double.Parse(obj);
+                case "bool":
+                    return bool.Parse(obj);
+                case "uint":
+                    return uint.Parse(obj);
+                case "short":
+                    return short.Parse(obj);
+                case "ushort":
+                    return ushort.Parse(obj);
+                case "long":
+                    return long.Parse(obj);
+                case "ulong":
+                    return ulong.Parse(obj);
+                default:
+                    break;
+            }
+            return obj;
+        }
+
     }
+
+    
 
     /// <summary>
     /// 编译目录下所有Excel
