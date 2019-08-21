@@ -599,9 +599,32 @@ namespace ExcelTool
                     if (col.Elements().Count() > 0)
                     {
                         var header = headers.First(x => x.Name == col.Name.LocalName);
-                        List<object> subObjectList = new List<object>();
-                        foreach (var subCol in col.Elements())
+                        if (header.SubNode.Count > 1)
                         {
+                            List<object> subObjectList = new List<object>();
+                            foreach (var subCol in col.Elements())
+                            {
+                                if (subCol.Elements().Count() > 0)
+                                {
+                                    Dictionary<string, object> objSub = new Dictionary<string, object>();
+                                    foreach (var subColEle in subCol.Elements())
+                                    {
+                                        var subHeader = header.SubNode.First().Value.First(x => x.Name == subColEle.Name.LocalName);
+                                        objSub[subColEle.Name.LocalName] = ChangeType(subColEle.Value, subHeader.Type);
+                                    }
+                                    subObjectList.Add(objSub);
+                                }
+                                else
+                                {
+                                    var subHeader = header.SubNode.First().Value.First();
+                                    subObjectList.Add(ChangeType(subCol.Value, subHeader.Type));
+                                }
+                            }
+                            objConfig[col.Name.LocalName] = subObjectList;
+                        }
+                        else
+                        {
+                            var subCol = col.Elements().First();
                             if (subCol.Elements().Count() > 0)
                             {
                                 Dictionary<string, object> objSub = new Dictionary<string, object>();
@@ -610,15 +633,14 @@ namespace ExcelTool
                                     var subHeader = header.SubNode.First().Value.First(x => x.Name == subColEle.Name.LocalName);
                                     objSub[subColEle.Name.LocalName] = ChangeType(subColEle.Value, subHeader.Type);
                                 }
-                                subObjectList.Add(objSub);
+                                objConfig[col.Name.LocalName] = objSub;
                             }
                             else
                             {
                                 var subHeader = header.SubNode.First().Value.First();
-                                subObjectList.Add(ChangeType(subCol.Value, subHeader.Type));
+                                objConfig[col.Name.LocalName] = ChangeType(subCol.Value, subHeader.Type);
                             }
                         }
-                        objConfig[col.Name.LocalName] = subObjectList;
                     }
                     else
                     {
@@ -676,6 +698,13 @@ namespace ExcelTool
         static ExcelParseFolder _Instance = null;
         public static ExcelParseFolder Instance => _Instance ?? (_Instance = new ExcelParseFolder());
 
+        /// <summary>
+        /// 解析文件夹下的Excel文件
+        /// </summary>
+        /// <param name="folderPath">Excel路径</param>
+        /// <param name="dllSavePath">输出dll路径</param>
+        /// <param name="xmlSavePath">输出xml路径</param>
+        /// <param name="jsonSavePath">输出json路径</param>
         public void DoParseFolder(string folderPath, string dllSavePath, string xmlSavePath, string jsonSavePath)
         {
             Dictionary<string, string> classDic = new Dictionary<string, string>();
